@@ -50,35 +50,41 @@
   });
 
   function php_email_form_submit(thisForm, action, formData) {
+    const hostedForm = thisForm.hasAttribute('data-formsubmit');
+    const submitButton = thisForm.querySelector('button[type="submit"]');
+    if (submitButton) submitButton.disabled = true;
     fetch(action, {
       method: 'POST',
       body: formData,
-      headers: {'X-Requested-With': 'XMLHttpRequest'}
+      headers: hostedForm ? {'Accept': 'application/json'} : {'X-Requested-With': 'XMLHttpRequest'}
     })
     .then(response => {
       if( response.ok ) {
-        return response.text();
+        return hostedForm ? response.json() : response.text();
       } else {
         throw new Error(`${response.status} ${response.statusText} ${response.url}`); 
       }
     })
     .then(data => {
       thisForm.querySelector('.loading').classList.remove('d-block');
-      if (data.trim() == 'OK') {
+      if (hostedForm ? (data.success === true || data.success === 'true') : data.trim() === 'OK') {
         thisForm.querySelector('.sent-message').classList.add('d-block');
         thisForm.reset(); 
       } else {
-        throw new Error(data ? data : 'Form submission failed and no error message returned from: ' + action); 
+        throw new Error((hostedForm ? data.message : data) || 'Unable to send your message. Please try again.'); 
       }
     })
     .catch((error) => {
       displayError(thisForm, error);
+    })
+    .finally(() => {
+      if (submitButton) submitButton.disabled = false;
     });
   }
 
   function displayError(thisForm, error) {
     thisForm.querySelector('.loading').classList.remove('d-block');
-    thisForm.querySelector('.error-message').innerHTML = error;
+    thisForm.querySelector('.error-message').textContent = error.message || String(error);
     thisForm.querySelector('.error-message').classList.add('d-block');
   }
 
